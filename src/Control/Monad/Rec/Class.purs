@@ -10,15 +10,11 @@ module Control.Monad.Rec.Class
 
 import Prelude
 
-import Control.Monad.Eff (Eff, untilE)
-import Control.Monad.Eff.Unsafe as U
-import Control.Monad.ST (ST, runST, newSTRef, readSTRef, writeSTRef)
+import Control.Monad.Eff (Eff)
 
 import Data.Either (Either(..))
 import Data.Identity (Identity(..))
 import Data.Bifunctor (class Bifunctor)
-
-import Partial.Unsafe (unsafePartial)
 
 -- | The result of a computation: either `Loop` containing the updated
 -- | accumulator, or `Done` containing the final result of the computation.
@@ -111,23 +107,10 @@ instance monadRecEither :: MonadRec (Either e) where
     in tailRec g (f a0)
 
 tailRecEff :: forall a b eff. (a -> Eff eff (Step a b)) -> a -> Eff eff b
-tailRecEff f a = runST do
-  e <- f' a
-  r <- newSTRef e
-  untilE do
-    e' <- readSTRef r
-    case e' of
-      Loop a' -> do
-        e'' <- f' a'
-        writeSTRef r e''
-        pure false
-      Done b -> pure true
-  fromDone <$> readSTRef r
-  where
-  f' :: forall h. a -> Eff (st :: ST h | eff) (Step a b)
-  f' = U.unsafeCoerceEff <<< f
-  fromDone :: Step a b -> b
-  fromDone = unsafePartial \(Done b) -> b
+tailRecEff f a = f a >>= case _ of
+  Loop a' -> tailRecEff f a'
+  Done b -> pure b
+
 
 -- | `forever` runs an action indefinitely, using the `MonadRec` instance to
 -- | ensure constant stack usage.
