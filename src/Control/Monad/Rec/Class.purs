@@ -6,6 +6,8 @@ module Control.Monad.Rec.Class
   , tailRecM2
   , tailRecM3
   , forever
+  , whileJust
+  , untilJust
   ) where
 
 import Prelude
@@ -39,15 +41,15 @@ instance bifunctorStep :: Bifunctor Step where
 -- | For example:
 -- |
 -- | ```purescript
--- | loopWriter :: Number -> WriterT Sum (Eff (trace :: Trace)) Unit
+-- | loopWriter :: Int -> WriterT (Additive Int) Effect Unit
 -- | loopWriter n = tailRecM go n
 -- |   where
 -- |   go 0 = do
--- |     lift $ trace "Done!"
+-- |     traceM "Done!"
 -- |     pure (Done unit)
--- |   go n = do
--- |     tell $ Sum n
--- |     pure (Loop (n - 1))
+-- |   go i = do
+-- |     tell $ Additive i
+-- |     pure (Loop (i - 1))
 -- | ```
 class Monad m <= MonadRec m where
   tailRecM :: forall a b. (a -> m (Step a b)) -> a -> m b
@@ -78,10 +80,10 @@ tailRecM3 f a b c = tailRecM (\o -> f o.a o.b o.c) { a, b, c }
 -- | For example:
 -- |
 -- | ```purescript
--- | pow :: Number -> Number -> Number
+-- | pow :: Int -> Int -> Int
 -- | pow n p = tailRec go { accum: 1, power: p }
 -- |   where
--- |   go :: _ -> Step _ Number
+-- |   go :: _ -> Step _ Int
 -- |   go { accum: acc, power: 0 } = Done acc
 -- |   go { accum: acc, power: p } = Loop { accum: acc * n, power: p - 1 }
 -- | ```
@@ -139,3 +141,17 @@ instance monadRecMaybe :: MonadRec Maybe where
 -- | ```
 forever :: forall m a b. MonadRec m => m a -> m b
 forever ma = tailRecM (\u -> Loop u <$ ma) unit
+
+-- | While supplied computation evaluates to `Just _`, it will be
+-- | executed repeatedly and results will be combined using monoid instance.
+whileJust :: forall a m. Monoid a => MonadRec m => m (Maybe a) -> m a
+whileJust m = mempty # tailRecM \v -> m <#> case _ of
+  Nothing -> Done v
+  Just x -> Loop $ v <> x
+
+-- | Supplied computation will be executed repeatedly until it evaluates
+-- | to `Just value` and then that `value` will be returned.
+untilJust :: forall a m. MonadRec m => m (Maybe a) -> m a
+untilJust m = unit # tailRecM \_ -> m <#> case _ of
+  Nothing -> Loop unit
+  Just x -> Done x

@@ -1,14 +1,15 @@
 # purescript-tailrec
 
 [![Latest release](http://img.shields.io/github/release/purescript/purescript-tailrec.svg)](https://github.com/purescript/purescript-tailrec/releases)
-[![Build status](https://travis-ci.org/purescript/purescript-tailrec.svg?branch=master)](https://travis-ci.org/purescript/purescript-tailrec)
+[![Build status](https://github.com/purescript/purescript-tailrec/workflows/CI/badge.svg?branch=master)](https://github.com/purescript/purescript-tailrec/actions?query=workflow%3ACI+branch%3Amaster)
+[![Pursuit](https://pursuit.purescript.org/packages/purescript-tailrec/badge)](https://pursuit.purescript.org/packages/purescript-tailrec)
 
 A type class which captures stack-safe monadic tail recursion.
 
 ## Installation
 
 ```
-bower i purescript-tailrec
+spago install tailrec
 ```
 
 ## Usage
@@ -16,7 +17,7 @@ bower i purescript-tailrec
 The PureScript compiler performs tail-call elimination for self-recursive functions, so that a function like
 
 ```purescript
-pow :: Number -> Number -> Number
+pow :: Int -> Int -> Int
 pow n p = go { accum: 1, power: p }
   where
   go { accum: acc, power: 0 } = acc
@@ -28,7 +29,7 @@ gets compiled into an efficient `while` loop.
 However, we do not get the same benefit when using monadic recursion:
 
 ```purescript
-powWriter :: Number -> Number -> Writer Product Unit
+powWriter :: Int -> Int -> Writer Product Unit
 powWriter n = go
   where
   go 0 = return unit
@@ -40,10 +41,10 @@ powWriter n = go
 However, we can refactor the original function to isolate the recursive function call:
 
 ```purescript
-pow :: Number -> Number -> Number
+pow :: Int -> Int -> Int
 pow n p = tailRec go { accum: 1, power: p }
   where
-  go :: _ -> Step _ Number
+  go :: _ -> Step _ Int
   go { accum: acc, power: 0 } = Done acc
   go { accum: acc, power: p } = Loop { accum: acc * n, power: p - 1 }
 ```
